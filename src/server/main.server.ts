@@ -1,3 +1,4 @@
-import { makeHello } from "shared/module";
+import {RoundManager} from "./game/RoundManager";
 
-print(makeHello("main.server.ts"));
+const game2 = new RoundManager();
+game2.start();
