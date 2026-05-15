@@ -10,7 +10,7 @@ screen.Parent = gui;
 
 const label = new Instance("TextLabel");
 label.Size = new UDim2(0, 350, 0, 70);
-label.Position = new UDim2(0.5, -175, 0, 20);
+label.Position = new UDim2(0.5, -175, 0, -10);
 label.BackgroundTransparency = 0.3;
 label.TextScaled = true;
 label.Visible = false;

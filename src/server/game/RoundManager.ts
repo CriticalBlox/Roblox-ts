@@ -4,7 +4,10 @@ import {Game_Config} from "./GameConfig";
 import { setTeam } from "../services/TeamService";
 import { teleport } from "../services/SpawnService";
 
+
 export class RoundManager {
+  private blueScore = 0;
+  private redScore = 0;
   private currentRound = 0;
 
   public start() {
@@ -50,6 +53,9 @@ export class RoundManager {
   private startRound() {
     this.assignTeams();
 
+    Remotes.Score.FireAllClients("show");
+    this.updateScoreUI();
+
     for (const player of Players.GetPlayers()) {
       teleport(player);
     }
@@ -74,9 +80,50 @@ export class RoundManager {
       t--;
     }
 
+    this.giveRoundWin();
+
     Remotes.Timer.FireAllClients("hide");
 
     return true;
+  }
+
+  private updateScoreUI() {
+    Remotes.Score.FireAllClients("update", this.blueScore, this.redScore);
+  }
+
+  private giveRoundWin() {
+    const players = Players.GetPlayers();
+
+    let blueAlive = 0;
+    let redAlive = 0;
+
+    for (const player of players) {
+      const character = player.Character;
+
+      if (!character) continue;
+
+      const humanoid = character.FindFirstChild("Humanoid") as Humanoid;
+
+      if (!humanoid || humanoid.Health <= 0) continue;
+
+      if (player.Team?.Name === "Blue") {
+        blueAlive++;
+      }
+
+      if (player.Team?.Name === "Red") {
+        redAlive++;
+      }
+    }
+
+    if (blueAlive > redAlive) {
+      this.blueScore++;
+    }
+
+    if (redAlive > blueAlive) {
+      this.redScore++;
+    }
+
+    this.updateScoreUI();
   }
 
   private loop() {
@@ -100,7 +147,7 @@ export class RoundManager {
         }
 
       }
-
+      Remotes.Score.FireAllClients("hide");
       this.currentRound = 0;
     }
   }
