@@ -19,5 +19,8 @@
     "eslint-plugin-roblox-ts": "^1.4.0",
     "roblox-ts": "^3.0.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@rbxts/services": "^1.6.0"
   }
 }
