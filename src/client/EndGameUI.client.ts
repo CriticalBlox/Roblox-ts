@@ -1,8 +1,13 @@
-import { Players } from "@rbxts/services";
+import {Players, UserInputService} from "@rbxts/services";
 import { Remotes } from "shared/Remotes";
 
 const player = Players.LocalPlayer;
 const gui = player.WaitForChild("PlayerGui");
+
+function freeMouse() {
+  UserInputService.MouseBehavior = Enum.MouseBehavior.Default;
+  UserInputService.MouseIconEnabled = true;
+}
 
 type PlayerData = {
   name: string;
@@ -38,6 +43,7 @@ mainStroke.Color = Color3.fromRGB(90, 120, 150);
 mainStroke.Parent = main;
 
 const closeButton = new Instance("TextButton");
+closeButton.Modal = true;
 closeButton.Size = new UDim2(0.04, 0, 0.07, 0);
 closeButton.Position = new UDim2(0.98, 0, 0.02, 0);
 closeButton.AnchorPoint = new Vector2(1, 0);
@@ -184,6 +190,7 @@ function clearList(list: Frame) {
 
 Remotes.EndGame.OnClientEvent.Connect(
   (winner: string, playersData: PlayerData[], blueScore?: number, redScore?: number) => {
+    freeMouse();
     screen.Enabled = true;
 
     clearList(bluePanel.list);
