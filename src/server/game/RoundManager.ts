@@ -3,12 +3,15 @@ import { Game_Config } from "./GameConfig";
 import { setTeam } from "../services/TeamService";
 import { teleport } from "../services/SpawnService";
 import { getStartCount, getStartPlayers } from "../services/StartService";
+import {setSpectator} from "../services/SpectatorService";
+import {clearInventory, giveItems} from "../services/InventoryService";
 
 export class RoundManager {
   private blueScore = 0;
   private redScore = 0;
   private currentRound = 0;
   private gamePlayers = new Array<Player>();
+  private originalTeams = new Map<Player, "Blue" | "Red">();
 
   public start() {
     task.spawn(() => {
@@ -44,13 +47,29 @@ export class RoundManager {
 
     for (let i = 0; i < this.gamePlayers.size(); i++) {
       const player = this.gamePlayers[i];
-      setTeam(player, i % 2 === 0 ? "Blue" : "Red");
+
+      const teamName = i % 2 === 0 ? "Blue" : "Red";
+
+      this.originalTeams.set(player, teamName);
+
+      setTeam(player, teamName);
+    }
+  }
+
+  private restoreTeams() {
+    for (const player of this.gamePlayers) {
+      const teamName = this.originalTeams.get(player);
+
+      if (teamName) {
+        setTeam(player, teamName);
+      }
     }
   }
 
   private startRound() {
     Remotes.Score.FireAllClients("show");
     this.updateScoreUI();
+    this.restoreTeams();
 
     for (const player of this.gamePlayers) {
       player.LoadCharacterAsync();
@@ -58,7 +77,10 @@ export class RoundManager {
 
     for (const player of this.gamePlayers) {
       teleport(player);
+      giveItems(player, ["Sword", "M4"]);
     }
+
+    this.setupDeaths();
   }
 
   private runRound(): boolean {
@@ -75,6 +97,21 @@ export class RoundManager {
     Remotes.Timer.FireAllClients("hide");
 
     return true;
+  }
+
+  private setupDeaths() {
+    for (const player of this.gamePlayers) {
+      const character = player.Character;
+      if (!character) continue;
+
+      const humanoid = character.FindFirstChild("Humanoid") as Humanoid;
+      if (!humanoid) continue;
+
+      humanoid.Died.Once(() => {
+        setSpectator(player);
+        clearInventory(player);
+      });
+    }
   }
 
   private updateScoreUI() {
