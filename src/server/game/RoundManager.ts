@@ -162,6 +162,9 @@ export class RoundManager {
     let blueAlive = 0;
     let redAlive = 0;
 
+    let blueHealth = 0;
+    let redHealth = 0;
+
     for (const player of this.gamePlayers) {
       const character = player.Character;
       if (!character) continue;
@@ -169,12 +172,41 @@ export class RoundManager {
       const humanoid = character.FindFirstChild("Humanoid") as Humanoid;
       if (!humanoid || humanoid.Health <= 0) continue;
 
-      if (player.Team?.Name === "Blue") blueAlive++;
-      if (player.Team?.Name === "Red") redAlive++;
+      if (player.Team?.Name === "Blue") {
+        blueAlive++;
+        blueHealth += humanoid.Health;
+      }
+
+      if (player.Team?.Name === "Red") {
+        redAlive++;
+        redHealth += humanoid.Health;
+      }
     }
 
-    if (blueAlive > redAlive) this.blueScore++;
-    if (redAlive > blueAlive) this.redScore++;
+    if (blueAlive > redAlive) {
+      this.blueScore++;
+      this.updateScoreUI();
+      return;
+    }
+
+    if (redAlive > blueAlive) {
+      this.redScore++;
+      this.updateScoreUI();
+      return;
+    }
+
+
+    if (blueHealth > redHealth) {
+      this.blueScore++;
+      this.updateScoreUI();
+      return;
+    }
+
+    if (redHealth > blueHealth) {
+      this.redScore++;
+      this.updateScoreUI();
+      return;
+    }
 
     this.updateScoreUI();
   }
