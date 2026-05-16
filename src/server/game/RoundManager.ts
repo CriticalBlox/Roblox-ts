@@ -6,6 +6,7 @@ import { getStartCount, getStartPlayers } from "../services/StartService";
 import {setSpectator} from "../services/SpectatorService";
 import {clearInventory, giveItems} from "../services/InventoryService";
 import {clearAllHighlights, highlightEnemiesFor} from "../services/HighlightService";
+import {getDeaths, getKills, resetKills, trackDeath} from "../services/KillService";
 
 export class RoundManager {
   private blueScore = 0;
@@ -70,15 +71,24 @@ export class RoundManager {
   private startRound() {
     Remotes.Score.FireAllClients("show");
     this.updateScoreUI();
+
     this.restoreTeams();
 
     for (const player of this.gamePlayers) {
       player.LoadCharacterAsync();
     }
 
+    task.wait(1);
+
     for (const player of this.gamePlayers) {
       teleport(player);
       giveItems(player, ["Sword", "M4"]);
+    }
+
+    task.wait(0.2);
+
+    for (const player of this.gamePlayers) {
+      trackDeath(player);
     }
 
     this.setupDeaths();
@@ -235,6 +245,43 @@ export class RoundManager {
     this.updateScoreUI();
   }
 
+  private sendEndGameUI() {
+    this.restoreTeams();
+
+    const playersData = new Array<{
+      name: string;
+      team: string;
+      kills: number;
+      deaths: number;
+    }>();
+
+    for (const player of this.gamePlayers) {
+      playersData.push({
+        name: player.Name,
+        team: player.Team?.Name ?? "None",
+        kills: getKills(player),
+        deaths: getDeaths(player),
+      });
+    }
+
+    let winner = "Draw";
+
+    if (this.blueScore > this.redScore) {
+      winner = "Blue";
+    }
+
+    if (this.redScore > this.blueScore) {
+      winner = "Red";
+    }
+
+    Remotes.EndGame.FireAllClients(
+      winner,
+      playersData,
+      this.blueScore,
+      this.redScore,
+    );
+  }
+
   private loop() {
     while (true) {
       Remotes.Score.FireAllClients("hide");
@@ -251,6 +298,7 @@ export class RoundManager {
       this.currentRound = 0;
 
       this.assignTeams();
+      resetKills(this.gamePlayers);
       this.updateScoreUI();
 
       for (let round = 1; round <= Game_Config.Rounds; round++) {
@@ -258,6 +306,9 @@ export class RoundManager {
         this.startRound();
         this.runRound();
       }
+      this.restoreTeams();
+      this.sendEndGameUI();
+      task.wait(5);
 
       Remotes.Score.FireAllClients("hide");
       Remotes.Timer.FireAllClients("hide");
