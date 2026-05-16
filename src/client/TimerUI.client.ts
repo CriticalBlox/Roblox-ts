@@ -6,6 +6,7 @@ const gui = player.WaitForChild("PlayerGui");
 
 const screen = new Instance("ScreenGui");
 screen.Name = "TimerUI";
+screen.ResetOnSpawn = false;
 screen.Parent = gui;
 
 const label = new Instance("TextLabel");

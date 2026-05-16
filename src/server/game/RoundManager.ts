@@ -1,4 +1,3 @@
-import { Players } from "@rbxts/services";
 import { Remotes } from "shared/Remotes";
 import { Game_Config } from "./GameConfig";
 import { setTeam } from "../services/TeamService";
@@ -50,10 +49,12 @@ export class RoundManager {
   }
 
   private startRound() {
-    this.assignTeams();
-
     Remotes.Score.FireAllClients("show");
     this.updateScoreUI();
+
+    for (const player of this.gamePlayers) {
+      player.LoadCharacterAsync();
+    }
 
     for (const player of this.gamePlayers) {
       teleport(player);
@@ -114,18 +115,24 @@ export class RoundManager {
 
       this.blueScore = 0;
       this.redScore = 0;
+      this.currentRound = 0;
+
+      this.assignTeams();
       this.updateScoreUI();
 
       for (let round = 1; round <= Game_Config.Rounds; round++) {
         this.currentRound = round;
-
         this.startRound();
         this.runRound();
       }
 
       Remotes.Score.FireAllClients("hide");
+      Remotes.Timer.FireAllClients("hide");
+
       this.currentRound = 0;
       this.gamePlayers.clear();
+
+      task.wait(1);
     }
   }
 }
