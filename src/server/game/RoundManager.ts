@@ -323,6 +323,18 @@ export class RoundManager {
     );
   }
 
+  private resetPlayersAfterGame() {
+    for (const player of this.gamePlayers) {
+      if (!player.Parent) continue;
+      clearInventory(player);
+
+      player.Team = undefined;
+      player.Neutral = true;
+
+      teleport(player);
+    }
+  }
+
   private loop() {
     while (true) {
       Remotes.Score.FireAllClients("hide");
@@ -357,7 +369,9 @@ export class RoundManager {
       this.restoreTeams();
       this.sendEndGameUI();
 
-      task.wait(5);
+      task.wait(1);
+
+      this.resetPlayersAfterGame();
 
       Remotes.Score.FireAllClients("hide");
       Remotes.Timer.FireAllClients("hide");
