@@ -162,10 +162,23 @@ export class RoundManager {
     let blueAlive = 0;
     let redAlive = 0;
 
+    let bluePlayers = 0;
+    let redPlayers = 0;
+
     let blueHealth = 0;
     let redHealth = 0;
 
     for (const player of this.gamePlayers) {
+      if (!player.Parent) continue;
+
+      if (player.Team?.Name === "Blue") {
+        bluePlayers++;
+      }
+
+      if (player.Team?.Name === "Red") {
+        redPlayers++;
+      }
+
       const character = player.Character;
       if (!character) continue;
 
@@ -183,6 +196,18 @@ export class RoundManager {
       }
     }
 
+    if (bluePlayers <= 0 && redPlayers > 0) {
+      this.redScore++;
+      this.updateScoreUI();
+      return;
+    }
+
+    if (redPlayers <= 0 && bluePlayers > 0) {
+      this.blueScore++;
+      this.updateScoreUI();
+      return;
+    }
+
     if (blueAlive > redAlive) {
       this.blueScore++;
       this.updateScoreUI();
@@ -194,7 +219,6 @@ export class RoundManager {
       this.updateScoreUI();
       return;
     }
-
 
     if (blueHealth > redHealth) {
       this.blueScore++;
