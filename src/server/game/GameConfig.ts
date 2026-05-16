@@ -1,6 +1,6 @@
 export const Game_Config = {
-  Min_Payers: 2,
-  Intermission: 30,
-  Round_Time: 180,
+  Min_Payers: 1,
+  Intermission: 5,
+  Round_Time: 2,
   Rounds: 7,
 };
