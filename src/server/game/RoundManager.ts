@@ -2,7 +2,7 @@ import { Remotes } from "shared/Remotes";
 import { Game_Config } from "./GameConfig";
 import { setTeam } from "../services/TeamService";
 import { teleport } from "../services/SpawnService";
-import { getStartCount, getStartPlayers } from "../services/StartService";
+import {getStartCount, getStartPlayers, setStartEnabled} from "../services/StartService";
 import { setSpectator } from "../services/SpectatorService";
 import { clearInventory, giveItems } from "../services/InventoryService";
 import { clearAllHighlights, highlightEnemiesFor } from "../services/HighlightService";
@@ -351,6 +351,9 @@ export class RoundManager {
       this.currentRound = 0;
 
       this.assignTeams();
+
+      setStartEnabled(false);
+
       resetKills(this.gamePlayers);
       this.updateScoreUI();
 
@@ -372,6 +375,10 @@ export class RoundManager {
       task.wait(1);
 
       this.resetPlayersAfterGame();
+
+      task.wait(2);
+
+      setStartEnabled(true);
 
       Remotes.Score.FireAllClients("hide");
       Remotes.Timer.FireAllClients("hide");
