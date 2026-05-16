@@ -3,10 +3,10 @@ import { Game_Config } from "./GameConfig";
 import { setTeam } from "../services/TeamService";
 import { teleport } from "../services/SpawnService";
 import { getStartCount, getStartPlayers } from "../services/StartService";
-import {setSpectator} from "../services/SpectatorService";
-import {clearInventory, giveItems} from "../services/InventoryService";
-import {clearAllHighlights, highlightEnemiesFor} from "../services/HighlightService";
-import {getDeaths, getKills, resetKills, trackDeath} from "../services/KillService";
+import { setSpectator } from "../services/SpectatorService";
+import { clearInventory, giveItems } from "../services/InventoryService";
+import { clearAllHighlights, highlightEnemiesFor } from "../services/HighlightService";
+import { getDeaths, getKills, resetKills, trackDeath } from "../services/KillService";
 
 export class RoundManager {
   private blueScore = 0;
@@ -46,14 +46,13 @@ export class RoundManager {
 
   private assignTeams() {
     this.gamePlayers = getStartPlayers();
+    this.originalTeams.clear();
 
     for (let i = 0; i < this.gamePlayers.size(); i++) {
       const player = this.gamePlayers[i];
-
       const teamName = i % 2 === 0 ? "Blue" : "Red";
 
       this.originalTeams.set(player, teamName);
-
       setTeam(player, teamName);
     }
   }
@@ -62,7 +61,7 @@ export class RoundManager {
     for (const player of this.gamePlayers) {
       const teamName = this.originalTeams.get(player);
 
-      if (teamName) {
+      if (teamName && player.Parent) {
         setTeam(player, teamName);
       }
     }
@@ -72,15 +71,21 @@ export class RoundManager {
     Remotes.Score.FireAllClients("show");
     this.updateScoreUI();
 
+    Remotes.Timer.FireAllClients("round", Game_Config.Round_Time, this.currentRound);
+
     this.restoreTeams();
 
     for (const player of this.gamePlayers) {
-      player.LoadCharacterAsync();
+      if (player.Parent) {
+        player.LoadCharacterAsync();
+      }
     }
 
     task.wait(1);
 
     for (const player of this.gamePlayers) {
+      if (!player.Parent) continue;
+
       teleport(player);
       giveItems(player, ["Sword", "M4"]);
     }
@@ -88,10 +93,28 @@ export class RoundManager {
     task.wait(0.2);
 
     for (const player of this.gamePlayers) {
-      trackDeath(player);
+      if (player.Parent) {
+        trackDeath(player);
+      }
     }
 
     this.setupDeaths();
+  }
+
+  private hasTeamDisconnected(teamName: "Blue" | "Red") {
+    let count = 0;
+
+    for (const player of this.gamePlayers) {
+      if (!player.Parent) continue;
+
+      const originalTeam = this.originalTeams.get(player);
+
+      if (originalTeam === teamName) {
+        count++;
+      }
+    }
+
+    return count <= 0;
   }
 
   private runRound(): boolean {
@@ -101,6 +124,15 @@ export class RoundManager {
 
     while (t > 0) {
       Remotes.Timer.FireAllClients("round", t, this.currentRound);
+
+      if (
+        this.hasTeamDisconnected("Blue") ||
+        this.hasTeamDisconnected("Red")
+      ) {
+        Remotes.Timer.FireAllClients("hide");
+        clearAllHighlights();
+        return false;
+      }
 
       if (
         this.isTeamEliminated("Blue") ||
@@ -113,7 +145,9 @@ export class RoundManager {
         highlightEnabled = true;
 
         for (const player of this.gamePlayers) {
-          highlightEnemiesFor(player);
+          if (player.Parent) {
+            highlightEnemiesFor(player);
+          }
         }
       }
 
@@ -125,11 +159,14 @@ export class RoundManager {
 
     Remotes.Timer.FireAllClients("hide");
     clearAllHighlights();
+
     return true;
   }
 
   private setupDeaths() {
     for (const player of this.gamePlayers) {
+      if (!player.Parent) continue;
+
       const character = player.Character;
       if (!character) continue;
 
@@ -147,16 +184,18 @@ export class RoundManager {
     let alive = 0;
 
     for (const player of this.gamePlayers) {
-      if (player.Team?.Name !== teamName) continue;
+      if (!player.Parent) continue;
+
+      const originalTeam = this.originalTeams.get(player);
+      if (originalTeam !== teamName) continue;
 
       const character = player.Character;
       if (!character) continue;
 
       const humanoid = character.FindFirstChild("Humanoid") as Humanoid;
-
       if (!humanoid) continue;
 
-      if (humanoid.Health > 0) {
+      if (humanoid.Health > 0 && player.Team?.Name === teamName) {
         alive++;
       }
     }
@@ -181,11 +220,13 @@ export class RoundManager {
     for (const player of this.gamePlayers) {
       if (!player.Parent) continue;
 
-      if (player.Team?.Name === "Blue") {
+      const originalTeam = this.originalTeams.get(player);
+
+      if (originalTeam === "Blue") {
         bluePlayers++;
       }
 
-      if (player.Team?.Name === "Red") {
+      if (originalTeam === "Red") {
         redPlayers++;
       }
 
@@ -195,12 +236,12 @@ export class RoundManager {
       const humanoid = character.FindFirstChild("Humanoid") as Humanoid;
       if (!humanoid || humanoid.Health <= 0) continue;
 
-      if (player.Team?.Name === "Blue") {
+      if (originalTeam === "Blue") {
         blueAlive++;
         blueHealth += humanoid.Health;
       }
 
-      if (player.Team?.Name === "Red") {
+      if (originalTeam === "Red") {
         redAlive++;
         redHealth += humanoid.Health;
       }
@@ -258,7 +299,7 @@ export class RoundManager {
     for (const player of this.gamePlayers) {
       playersData.push({
         name: player.Name,
-        team: player.Team?.Name ?? "None",
+        team: this.originalTeams.get(player) ?? "None",
         kills: getKills(player),
         deaths: getDeaths(player),
       });
@@ -303,11 +344,19 @@ export class RoundManager {
 
       for (let round = 1; round <= Game_Config.Rounds; round++) {
         this.currentRound = round;
+
         this.startRound();
-        this.runRound();
+
+        const finished = this.runRound();
+
+        if (!finished) {
+          break;
+        }
       }
+
       this.restoreTeams();
       this.sendEndGameUI();
+
       task.wait(5);
 
       Remotes.Score.FireAllClients("hide");
@@ -315,6 +364,7 @@ export class RoundManager {
 
       this.currentRound = 0;
       this.gamePlayers.clear();
+      this.originalTeams.clear();
 
       task.wait(1);
     }
