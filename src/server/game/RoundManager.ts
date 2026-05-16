@@ -89,11 +89,19 @@ export class RoundManager {
     while (t > 0) {
       Remotes.Timer.FireAllClients("round", t, this.currentRound);
 
+      if (
+        this.isTeamEliminated("Blue") ||
+        this.isTeamEliminated("Red")
+      ) {
+        break;
+      }
+
       task.wait(1);
       t--;
     }
 
     this.giveRoundWin();
+
     Remotes.Timer.FireAllClients("hide");
 
     return true;
@@ -112,6 +120,27 @@ export class RoundManager {
         clearInventory(player);
       });
     }
+  }
+
+  private isTeamEliminated(teamName: "Blue" | "Red") {
+    let alive = 0;
+
+    for (const player of this.gamePlayers) {
+      if (player.Team?.Name !== teamName) continue;
+
+      const character = player.Character;
+      if (!character) continue;
+
+      const humanoid = character.FindFirstChild("Humanoid") as Humanoid;
+
+      if (!humanoid) continue;
+
+      if (humanoid.Health > 0) {
+        alive++;
+      }
+    }
+
+    return alive <= 0;
   }
 
   private updateScoreUI() {
