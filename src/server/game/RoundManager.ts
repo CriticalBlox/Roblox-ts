@@ -1,14 +1,15 @@
 import { Players } from "@rbxts/services";
 import { Remotes } from "shared/Remotes";
-import {Game_Config} from "./GameConfig";
+import { Game_Config } from "./GameConfig";
 import { setTeam } from "../services/TeamService";
 import { teleport } from "../services/SpawnService";
-
+import { getStartCount, getStartPlayers } from "../services/StartService";
 
 export class RoundManager {
   private blueScore = 0;
   private redScore = 0;
   private currentRound = 0;
+  private gamePlayers = new Array<Player>();
 
   public start() {
     task.spawn(() => {
@@ -16,37 +17,35 @@ export class RoundManager {
     });
   }
 
-  private hasEnoughPlayers() {
-    return Players.GetPlayers().size() >= Game_Config.Min_Payers;
+  private hasEnoughStartPlayers() {
+    return getStartCount() >= Game_Config.Min_Payers;
   }
 
   private intermission(): boolean {
     let t = Game_Config.Intermission;
 
     while (t > 0) {
-      if (!this.hasEnoughPlayers()) {
+      if (!this.hasEnoughStartPlayers()) {
         Remotes.Timer.FireAllClients("hide");
         task.wait(1);
         return false;
       }
 
       Remotes.Timer.FireAllClients("intermission", t);
-
       task.wait(1);
       t--;
     }
 
     Remotes.Timer.FireAllClients("hide");
-
     return true;
   }
 
   private assignTeams() {
-    let toggle = true;
+    this.gamePlayers = getStartPlayers();
 
-    for (const player of Players.GetPlayers()) {
-      setTeam(player, toggle ? "Blue" : "Red");
-      toggle = !toggle;
+    for (let i = 0; i < this.gamePlayers.size(); i++) {
+      const player = this.gamePlayers[i];
+      setTeam(player, i % 2 === 0 ? "Blue" : "Red");
     }
   }
 
@@ -56,7 +55,7 @@ export class RoundManager {
     Remotes.Score.FireAllClients("show");
     this.updateScoreUI();
 
-    for (const player of Players.GetPlayers()) {
+    for (const player of this.gamePlayers) {
       teleport(player);
     }
   }
@@ -65,23 +64,13 @@ export class RoundManager {
     let t = Game_Config.Round_Time;
 
     while (t > 0) {
-      if (!this.hasEnoughPlayers()) {
-        Remotes.Timer.FireAllClients("hide");
-        return false;
-      }
-
-      Remotes.Timer.FireAllClients(
-        "round",
-        t,
-        this.currentRound,
-      );
+      Remotes.Timer.FireAllClients("round", t, this.currentRound);
 
       task.wait(1);
       t--;
     }
 
     this.giveRoundWin();
-
     Remotes.Timer.FireAllClients("hide");
 
     return true;
@@ -92,42 +81,30 @@ export class RoundManager {
   }
 
   private giveRoundWin() {
-    const players = Players.GetPlayers();
-
     let blueAlive = 0;
     let redAlive = 0;
 
-    for (const player of players) {
+    for (const player of this.gamePlayers) {
       const character = player.Character;
-
       if (!character) continue;
 
       const humanoid = character.FindFirstChild("Humanoid") as Humanoid;
-
       if (!humanoid || humanoid.Health <= 0) continue;
 
-      if (player.Team?.Name === "Blue") {
-        blueAlive++;
-      }
-
-      if (player.Team?.Name === "Red") {
-        redAlive++;
-      }
+      if (player.Team?.Name === "Blue") blueAlive++;
+      if (player.Team?.Name === "Red") redAlive++;
     }
 
-    if (blueAlive > redAlive) {
-      this.blueScore++;
-    }
-
-    if (redAlive > blueAlive) {
-      this.redScore++;
-    }
+    if (blueAlive > redAlive) this.blueScore++;
+    if (redAlive > blueAlive) this.redScore++;
 
     this.updateScoreUI();
   }
 
   private loop() {
     while (true) {
+      Remotes.Score.FireAllClients("hide");
+
       const ok = this.intermission();
 
       if (!ok) {
@@ -135,20 +112,20 @@ export class RoundManager {
         continue;
       }
 
+      this.blueScore = 0;
+      this.redScore = 0;
+      this.updateScoreUI();
+
       for (let round = 1; round <= Game_Config.Rounds; round++) {
         this.currentRound = round;
 
         this.startRound();
-
-        const finished = this.runRound();
-
-        if (!finished) {
-          break;
-        }
-
+        this.runRound();
       }
+
       Remotes.Score.FireAllClients("hide");
       this.currentRound = 0;
+      this.gamePlayers.clear();
     }
   }
 }
