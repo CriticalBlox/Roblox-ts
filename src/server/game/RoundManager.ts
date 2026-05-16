@@ -5,6 +5,7 @@ import { teleport } from "../services/SpawnService";
 import { getStartCount, getStartPlayers } from "../services/StartService";
 import {setSpectator} from "../services/SpectatorService";
 import {clearInventory, giveItems} from "../services/InventoryService";
+import {clearAllHighlights, highlightEnemiesFor} from "../services/HighlightService";
 
 export class RoundManager {
   private blueScore = 0;
@@ -85,6 +86,8 @@ export class RoundManager {
 
   private runRound(): boolean {
     let t = Game_Config.Round_Time;
+    let highlightEnabled = false;
+    const highlightTime = Game_Config.Round_Time * 0.3;
 
     while (t > 0) {
       Remotes.Timer.FireAllClients("round", t, this.currentRound);
@@ -96,6 +99,14 @@ export class RoundManager {
         break;
       }
 
+      if (!highlightEnabled && t <= highlightTime) {
+        highlightEnabled = true;
+
+        for (const player of this.gamePlayers) {
+          highlightEnemiesFor(player);
+        }
+      }
+
       task.wait(1);
       t--;
     }
@@ -103,7 +114,7 @@ export class RoundManager {
     this.giveRoundWin();
 
     Remotes.Timer.FireAllClients("hide");
-
+    clearAllHighlights();
     return true;
   }
 
