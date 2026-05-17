@@ -71,14 +71,20 @@ export class RoundManager {
     Remotes.Score.FireAllClients("show");
     this.updateScoreUI();
 
-    Remotes.Timer.FireAllClients("round", Game_Config.Round_Time, this.currentRound);
+    Remotes.Timer.FireAllClients(
+      "round",
+      Game_Config.Round_Time,
+      this.currentRound,
+    );
 
     this.restoreTeams();
 
+    task.wait(0.2);
+
     for (const player of this.gamePlayers) {
-      if (player.Parent) {
-        player.LoadCharacterAsync();
-      }
+      if (!player.Parent) continue;
+
+      player.LoadCharacterAsync();
     }
 
     task.wait(1);
@@ -86,16 +92,24 @@ export class RoundManager {
     for (const player of this.gamePlayers) {
       if (!player.Parent) continue;
 
+      const originalTeam = this.originalTeams.get(player);
+
+      if (originalTeam) {
+        setTeam(player, originalTeam);
+      }
+
       teleport(player);
+
+      clearInventory(player);
       giveItems(player, ["Sword", "M4"]);
     }
 
     task.wait(0.2);
 
     for (const player of this.gamePlayers) {
-      if (player.Parent) {
-        trackDeath(player);
-      }
+      if (!player.Parent) continue;
+
+      trackDeath(player);
     }
 
     this.setupDeaths();
