@@ -386,6 +386,10 @@ export class RoundManager {
       }
 
       this.restoreTeams();
+
+      Remotes.Score.FireAllClients("hide");
+      Remotes.Timer.FireAllClients("hide");
+
       this.sendEndGameUI();
 
       task.wait(1);
