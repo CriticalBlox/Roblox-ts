@@ -1,50 +1,59 @@
 import { Players, Workspace } from "@rbxts/services";
 
-const startZone = Workspace.WaitForChild("StartZone") as BasePart;
+const startZone = Workspace.WaitForChild("StartZone") as Model;
 
-const startStatusGui = new Instance("BillboardGui");
-startStatusGui.Size = new UDim2(0, 260, 0, 60);
-startStatusGui.StudsOffset = new Vector3(0, 5, 0);
-startStatusGui.AlwaysOnTop = true;
-startStatusGui.Adornee = startZone;
-startStatusGui.Parent = startZone;
+const originalColors = new Map<BasePart, Color3>();
 
-const statusLabel = new Instance("TextLabel");
-statusLabel.Size = UDim2.fromScale(1, 1);
-statusLabel.BackgroundTransparency = 1;
-statusLabel.TextScaled = true;
-statusLabel.Font = Enum.Font.GothamBold;
-statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255);
-statusLabel.Parent = startStatusGui;
+function getZoneParts() {
+  const parts = new Array<BasePart>();
+
+  for (const child of startZone.GetDescendants()) {
+    if (child.IsA("BasePart")) {
+      parts.push(child);
+
+      if (!originalColors.has(child)) {
+        originalColors.set(child, child.Color);
+      }
+    }
+  }
+
+  return parts;
+}
 
 export function setStartEnabled(enabled: boolean) {
-  startZone.CanTouch = enabled;
-  startZone.CanQuery = enabled;
-  startZone.Transparency = enabled ? 0 : 0.5;
+  for (const part of getZoneParts()) {
+    part.CanTouch = enabled;
+    part.CanQuery = enabled;
+    part.Transparency = enabled ? 0 : 0.5;
 
-  if (enabled) {
-    startZone.Color = Color3.fromRGB(44, 101, 29);
-    statusLabel.Text = "En attente de joueurs...";
-  } else {
-    startZone.Color = Color3.fromRGB(255, 0, 0);
-    statusLabel.Text = "PARTIE EN COURS";
+    if (enabled) {
+      part.Color =
+        originalColors.get(part) ??
+        Color3.fromRGB(255, 255, 255);
+    } else {
+      part.Color = Color3.fromRGB(255, 0, 0);
+    }
   }
 }
 
 export function getStartPlayers() {
   const startPlayers = new Array<Player>();
 
-  const parts = Workspace.GetPartsInPart(startZone);
+  for (const zonePart of getZoneParts()) {
+    const parts = Workspace.GetPartsInPart(zonePart);
 
-  for (const part of parts) {
-    const character = part.Parent;
-    if (!character) continue;
+    for (const part of parts) {
+      const character = part.Parent;
+      if (!character) continue;
 
-    const player = Players.GetPlayerFromCharacter(character);
-    if (!player) continue;
+      const player = Players.GetPlayerFromCharacter(character);
+      if (!player) continue;
 
-    if (!startPlayers.includes(player)) {
-      startPlayers.push(player);
+      if (player.Team && !player.Neutral) continue;
+
+      if (!startPlayers.includes(player)) {
+        startPlayers.push(player);
+      }
     }
   }
 
