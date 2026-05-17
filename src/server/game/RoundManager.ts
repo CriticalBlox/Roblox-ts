@@ -332,6 +332,8 @@ export class RoundManager {
       player.Neutral = true;
 
       teleport(player);
+
+      setStartEnabled(true);
     }
   }
 
