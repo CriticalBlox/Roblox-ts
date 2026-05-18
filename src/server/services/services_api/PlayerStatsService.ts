@@ -1,5 +1,6 @@
 import {apiPost} from "../routes_api/ApiService_Post";
-import {apiPatch} from "../routes_api/ApiSerivce_Patch";
+import {apiPatch} from "../routes_api/ApiService_Patch";
+
 
 export const playerStatsIds = new Map<Player, number>();
 

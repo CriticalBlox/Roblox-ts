@@ -1,4 +1,5 @@
-import {apiPatch} from "../routes_api/ApiSerivce_Patch";
+import {apiPatch} from "../routes_api/ApiService_Patch";
+
 
 export function updateApiGame(
   gameId: number,
