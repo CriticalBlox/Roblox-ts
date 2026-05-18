@@ -108,7 +108,7 @@ export class RoundManager {
       teleport(player);
 
       clearInventory(player);
-      giveItems(player, ["Sword", "M4"]);
+      giveItems(player, ["Sword", "AK47","Glock 22"]);
     }
 
     task.wait(0.2);
