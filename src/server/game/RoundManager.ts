@@ -7,7 +7,7 @@ import { setSpectator } from "../services/SpectatorService";
 import { clearInventory, giveItems } from "../services/InventoryService";
 import { clearAllHighlights, highlightEnemiesFor } from "../services/HighlightService";
 import { getDeaths, getKills, resetKills, trackDeath } from "../services/KillService";
-import {createApiGame, createApiGamePlayer, createApiRound} from "../services/services_api/GameService";
+import {createApiGame, createApiGamePlayer, createApiRound} from "../services/services_api/GameService_Post";
 
 export class RoundManager {
   private blueScore = 0;
