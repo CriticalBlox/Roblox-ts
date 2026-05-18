@@ -7,6 +7,7 @@ import { setSpectator } from "../services/SpectatorService";
 import { clearInventory, giveItems } from "../services/InventoryService";
 import { clearAllHighlights, highlightEnemiesFor } from "../services/HighlightService";
 import { getDeaths, getKills, resetKills, trackDeath } from "../services/KillService";
+import {createApiGame, createApiGamePlayer, createApiRound} from "../services/services_api/GameService";
 
 export class RoundManager {
   private blueScore = 0;
@@ -14,6 +15,7 @@ export class RoundManager {
   private currentRound = 0;
   private gamePlayers = new Array<Player>();
   private originalTeams = new Map<Player, "Blue" | "Red">();
+  private currentGameId?: number;
 
   public start() {
     task.spawn(() => {
@@ -368,6 +370,22 @@ export class RoundManager {
 
       this.assignTeams();
 
+      const apiGame = createApiGame(Game_Config.Rounds);
+
+      if (!apiGame) {
+        warn("Impossible de créer la game API");
+        continue;
+      }
+
+      this.currentGameId = apiGame.id;
+
+      for (const player of this.gamePlayers) {
+        const team = this.originalTeams.get(player);
+        if (!team) continue;
+
+        createApiGamePlayer(this.currentGameId, player, team);
+      }
+
       setStartEnabled(false);
 
       resetKills(this.gamePlayers);
@@ -379,6 +397,20 @@ export class RoundManager {
         this.startRound();
 
         const finished = this.runRound();
+
+        let winnerTeam: "red" | "blue" | undefined;
+
+        if (this.blueScore > this.redScore) {
+          winnerTeam = "blue";
+        }
+
+        if (this.redScore > this.blueScore) {
+          winnerTeam = "red";
+        }
+
+        if (this.currentGameId) {
+          createApiRound(this.currentGameId, round, winnerTeam);
+        }
 
         if (!finished) {
           break;

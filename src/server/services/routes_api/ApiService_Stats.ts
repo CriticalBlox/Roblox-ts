@@ -3,7 +3,7 @@ import { HttpService } from "@rbxts/services";
 const API_URL = "https://backend-1-6no2.onrender.com";
 const API_KEY = "hfb5958895dsffsf5fsdfsdf";
 
-export function apiPost(path: string, body: object) {
+export function apiPost<T>(path: string, body: object): T | undefined {
   const response = HttpService.RequestAsync({
     Url: `${API_URL}${path}`,
     Method: "POST",
@@ -14,5 +14,5 @@ export function apiPost(path: string, body: object) {
     Body: HttpService.JSONEncode(body),
   });
 
-  return HttpService.JSONDecode(response.Body);
+  return HttpService.JSONDecode(response.Body) as T;
 }
