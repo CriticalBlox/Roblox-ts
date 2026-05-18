@@ -16,7 +16,7 @@ export function createApiGame(roundsTotal: number) {
 export function createApiRound(
   gameId: number,
   roundNumber: number,
-  winnerTeam?: "red" | "blue",
+  winnerTeam?: "blue" | "red",
 ) {
   return apiPost<RoundResponse>("/rounds", {
     game_id: gameId,
