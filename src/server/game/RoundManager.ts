@@ -7,7 +7,8 @@ import { setSpectator } from "../services/SpectatorService";
 import { clearInventory, giveItems } from "../services/InventoryService";
 import { clearAllHighlights, highlightEnemiesFor } from "../services/HighlightService";
 import { getDeaths, getKills, resetKills, trackDeath } from "../services/KillService";
-import {createApiGame, createApiGamePlayer, createApiRound} from "../services/services_api/GameService";
+import {createApiGame, createApiGamePlayer, createApiRound} from "../services/services_api/GameService_Post";
+import {updateApiGame, updateApiGamePlayer} from "../services/services_api/GameService_Patch";
 
 export class RoundManager {
   private blueScore = 0;
@@ -16,6 +17,8 @@ export class RoundManager {
   private gamePlayers = new Array<Player>();
   private originalTeams = new Map<Player, "Blue" | "Red">();
   private currentGameId?: number;
+  private apiPlayers = new Map<Player, number>();
+  private lastRoundWinner?: "blue" | "red";
 
   public start() {
     task.spawn(() => {
@@ -150,10 +153,20 @@ export class RoundManager {
         return false;
       }
 
-      if (
-        this.isTeamEliminated("Blue") ||
-        this.isTeamEliminated("Red")
-      ) {
+      const blueEliminated = this.isTeamEliminated("Blue");
+      const redEliminated = this.isTeamEliminated("Red");
+
+      if (blueEliminated && !redEliminated) {
+        this.redScore++;
+        this.lastRoundWinner = "red";
+        this.updateScoreUI();
+        break;
+      }
+
+      if (redEliminated && !blueEliminated) {
+        this.blueScore++;
+        this.lastRoundWinner = "blue";
+        this.updateScoreUI();
         break;
       }
 
@@ -171,7 +184,9 @@ export class RoundManager {
       t--;
     }
 
-    this.giveRoundWin();
+    if (!this.lastRoundWinner) {
+      this.giveRoundWin();
+    }
 
     Remotes.Timer.FireAllClients("hide");
     clearAllHighlights();
@@ -233,18 +248,14 @@ export class RoundManager {
     let blueHealth = 0;
     let redHealth = 0;
 
+
     for (const player of this.gamePlayers) {
       if (!player.Parent) continue;
 
       const originalTeam = this.originalTeams.get(player);
 
-      if (originalTeam === "Blue") {
-        bluePlayers++;
-      }
-
-      if (originalTeam === "Red") {
-        redPlayers++;
-      }
+      if (originalTeam === "Blue") bluePlayers++;
+      if (originalTeam === "Red") redPlayers++;
 
       const character = player.Character;
       if (!character) continue;
@@ -265,36 +276,42 @@ export class RoundManager {
 
     if (bluePlayers <= 0 && redPlayers > 0) {
       this.redScore++;
+      this.lastRoundWinner = "red";
       this.updateScoreUI();
       return;
     }
 
     if (redPlayers <= 0 && bluePlayers > 0) {
       this.blueScore++;
+      this.lastRoundWinner = "blue";
       this.updateScoreUI();
       return;
     }
 
     if (blueAlive > redAlive) {
       this.blueScore++;
+      this.lastRoundWinner = "blue";
       this.updateScoreUI();
       return;
     }
 
     if (redAlive > blueAlive) {
       this.redScore++;
+      this.lastRoundWinner = "red";
       this.updateScoreUI();
       return;
     }
 
     if (blueHealth > redHealth) {
       this.blueScore++;
+      this.lastRoundWinner = "blue";
       this.updateScoreUI();
       return;
     }
 
     if (redHealth > blueHealth) {
       this.redScore++;
+      this.lastRoundWinner = "red";
       this.updateScoreUI();
       return;
     }
@@ -383,7 +400,11 @@ export class RoundManager {
         const team = this.originalTeams.get(player);
         if (!team) continue;
 
-        createApiGamePlayer(this.currentGameId, player, team);
+        const apiPlayer = createApiGamePlayer(this.currentGameId, player, team);
+
+        if (apiPlayer) {
+          this.apiPlayers.set(player, apiPlayer.id);
+        }
       }
 
       setStartEnabled(false);
@@ -393,23 +414,14 @@ export class RoundManager {
 
       for (let round = 1; round <= Game_Config.Rounds; round++) {
         this.currentRound = round;
+        this.lastRoundWinner = undefined;
 
         this.startRound();
 
         const finished = this.runRound();
 
-        let winnerTeam: "red" | "blue" | undefined;
-
-        if (this.blueScore > this.redScore) {
-          winnerTeam = "blue";
-        }
-
-        if (this.redScore > this.blueScore) {
-          winnerTeam = "red";
-        }
-
         if (this.currentGameId) {
-          createApiRound(this.currentGameId, round, winnerTeam);
+          createApiRound(this.currentGameId, round, this.lastRoundWinner);
         }
 
         if (!finished) {
@@ -421,6 +433,37 @@ export class RoundManager {
 
       Remotes.Score.FireAllClients("hide");
       Remotes.Timer.FireAllClients("hide");
+
+      for (const player of this.gamePlayers) {
+        const apiPlayerId = this.apiPlayers.get(player);
+
+        if (!apiPlayerId) continue;
+
+        updateApiGamePlayer(
+          apiPlayerId,
+          getKills(player),
+          getDeaths(player),
+        );
+      }
+
+      let winnerTeam: "blue" | "red" | undefined;
+
+      if (this.blueScore > this.redScore) {
+        winnerTeam = "blue";
+      }
+
+      if (this.redScore > this.blueScore) {
+        winnerTeam = "red";
+      }
+
+      if (this.currentGameId) {
+        updateApiGame(
+          this.currentGameId,
+          this.blueScore,
+          this.redScore,
+          winnerTeam,
+        );
+      }
 
       this.sendEndGameUI();
 
@@ -438,6 +481,7 @@ export class RoundManager {
       this.currentRound = 0;
       this.gamePlayers.clear();
       this.originalTeams.clear();
+      this.apiPlayers.clear();
 
       task.wait(1);
     }

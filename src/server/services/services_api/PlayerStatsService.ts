@@ -1,4 +1,4 @@
-import {apiPost} from "../routes_api/ApiService_Stats";
+import {apiPost} from "../routes_api/ApiService_Post";
 
 export function createStatsIfFirstJoin(player: Player) {
   task.spawn(() => {

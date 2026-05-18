@@ -1,5 +1,6 @@
-import {apiPost} from "../routes_api/ApiService_Stats";
+
 import {GamePlayerResponse, GameResponse, RoundResponse} from "../../../shared/interfaces/Game";
+import {apiPost} from "../routes_api/ApiService_Post";
 
 
 export function createApiGame(roundsTotal: number) {
@@ -15,7 +16,7 @@ export function createApiGame(roundsTotal: number) {
 export function createApiRound(
   gameId: number,
   roundNumber: number,
-  winnerTeam?: "red" | "blue",
+  winnerTeam?: "blue" | "red",
 ) {
   return apiPost<RoundResponse>("/rounds", {
     game_id: gameId,
