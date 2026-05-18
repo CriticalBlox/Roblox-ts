@@ -9,6 +9,7 @@ import { clearAllHighlights, highlightEnemiesFor } from "../services/HighlightSe
 import { getDeaths, getKills, resetKills, trackDeath } from "../services/KillService";
 import {createApiGame, createApiGamePlayer, createApiRound} from "../services/services_api/GameService_Post";
 import {updateApiGame, updateApiGamePlayer} from "../services/services_api/GameService_Patch";
+import {updateApiPlayerStats} from "../services/services_api/PlayerStatsService";
 
 export class RoundManager {
   private blueScore = 0;
@@ -18,6 +19,7 @@ export class RoundManager {
   private originalTeams = new Map<Player, "Blue" | "Red">();
   private currentGameId?: number;
   private apiPlayers = new Map<Player, number>();
+  private apiStats = new Map<Player, number>();
   private lastRoundWinner?: "blue" | "red";
 
   public start() {
@@ -462,6 +464,22 @@ export class RoundManager {
           this.blueScore,
           this.redScore,
           winnerTeam,
+        );
+      }
+
+      for (const player of this.gamePlayers) {
+        const team = this.originalTeams.get(player);
+        if (!team) continue;
+
+        const hasWin =
+          (winnerTeam === "blue" && team === "Blue") ||
+          (winnerTeam === "red" && team === "Red");
+
+        updateApiPlayerStats(
+          player,
+          getKills(player),
+          getDeaths(player),
+          hasWin,
         );
       }
 
