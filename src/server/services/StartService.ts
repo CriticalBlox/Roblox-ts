@@ -1,6 +1,7 @@
 import { Players, Workspace } from "@rbxts/services";
 
 const startZone = Workspace.WaitForChild("StartZone") as Model;
+const startHitbox = startZone.WaitForChild("Hitbox") as BasePart;
 
 const originalColors = new Map<BasePart, Color3>();
 
@@ -8,7 +9,7 @@ function getZoneParts() {
   const parts = new Array<BasePart>();
 
   for (const child of startZone.GetDescendants()) {
-    if (child.IsA("BasePart")) {
+    if (child.IsA("BasePart") && child !== startHitbox) {
       parts.push(child);
 
       if (!originalColors.has(child)) {
@@ -21,6 +22,11 @@ function getZoneParts() {
 }
 
 export function setStartEnabled(enabled: boolean) {
+  startHitbox.CanQuery = enabled;
+  startHitbox.CanTouch = false;
+  startHitbox.CanCollide = false;
+  startHitbox.Transparency = 1;
+
   for (const part of getZoneParts()) {
     part.CanTouch = enabled;
     part.CanQuery = enabled;
@@ -39,21 +45,19 @@ export function setStartEnabled(enabled: boolean) {
 export function getStartPlayers() {
   const startPlayers = new Array<Player>();
 
-  for (const zonePart of getZoneParts()) {
-    const parts = Workspace.GetPartsInPart(zonePart);
+  const parts = Workspace.GetPartsInPart(startHitbox);
 
-    for (const part of parts) {
-      const character = part.Parent;
-      if (!character) continue;
+  for (const part of parts) {
+    const character = part.Parent;
+    if (!character) continue;
 
-      const player = Players.GetPlayerFromCharacter(character);
-      if (!player) continue;
+    const player = Players.GetPlayerFromCharacter(character);
+    if (!player) continue;
 
-      if (player.Team && !player.Neutral) continue;
+    if (player.Team && !player.Neutral) continue;
 
-      if (!startPlayers.includes(player)) {
-        startPlayers.push(player);
-      }
+    if (!startPlayers.includes(player)) {
+      startPlayers.push(player);
     }
   }
 
